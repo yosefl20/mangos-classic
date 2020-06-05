@@ -39,9 +39,10 @@
 #include "BattleGround/BattleGround.h"
 #include "Maps/InstanceData.h"
 #include "OutdoorPvP/OutdoorPvP.h"
-#include "Maps/MapPersistentStateMgr.h"
+#include "Maps/GridDefines.h"
 #include "Grids/GridNotifiersImpl.h"
 #include "Grids/CellImpl.h"
+#include "Maps/MapPersistentStateMgr.h"
 #include "MotionGenerators/MovementGenerator.h"
 #include "Movement/MoveSplineInit.h"
 #include "Movement/MoveSpline.h"
@@ -6343,7 +6344,7 @@ Unit* Unit::SelectMagnetTarget(Unit* victim, Spell* spell)
         {
             if (Unit* magnet = magnetAura->GetCaster())
             {
-                if (magnet->IsAlive() && magnet->IsWithinLOSInMap(this) && CanAttack(magnet))
+                if (magnet->IsAlive() && magnet->IsWithinLOSInMap(this, true) && CanAttack(magnet))
                 {
                     magnetAura->UseMagnet();
                     return magnet;
@@ -7285,61 +7286,26 @@ float Unit::GetPPMProcChance(uint32 WeaponSpeed, float PPM) const
     return WeaponSpeed * PPM / 600.0f;                      // result is chance in percents (probability = Speed_in_sec * (PPM / 60))
 }
 
-void Unit::Mount(uint32 mount, uint32 spellId)
+bool Unit::Mount(uint32 displayid, const Aura* aura/* = nullptr*/)
 {
-    if (!mount)
-        return;
+    // Custom mount (non-aura such as taxi or command) overwrites aura mounts
+    if (!displayid || (IsMounted() && aura && uint32(aura->GetAmount()) != GetMountID()))
+        return false;
 
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNTING);
-
-    SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, mount);
-
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        // Called by Taxi system / GM command
-        if (!spellId)
-            ((Player*)this)->UnsummonPetTemporaryIfAny();
-        // Called by mount aura
-        else if (Pet* pet = GetPet())
-        {
-            if (sWorld.getConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT))
-                ((Player*)this)->UnsummonPetTemporaryIfAny();
-            else
-                pet->SetModeFlags(PET_MODE_DISABLE_ACTIONS);
-        }
-    }
+    SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, displayid);
+    return true;
 }
 
-void Unit::Unmount(bool from_aura)
+bool Unit::Unmount(const Aura* aura/* = nullptr*/)
 {
-    if (!IsMounted())
-        return;
+    // Custom mount (non-aura such as taxi or command) overwrites aura mounts, do not dismount on aura removal
+    if (!IsMounted() || (aura && uint32(aura->GetAmount()) != GetMountID()))
+        return false;
 
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_NOT_MOUNTED);
-
     SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, 0);
-
-    // Called NOT by Taxi system / GM command
-    if (from_aura)
-    {
-        WorldPacket data(SMSG_DISMOUNT, 8);
-        data << GetPackGUID();
-        SendMessageToSet(data, true);
-    }
-
-    // only resummon old pet if the player is already added to a map
-    // this prevents adding a pet to a not created map which would otherwise cause a crash
-    // (it could probably happen when logging in after a previous crash)
-    if (GetTypeId() == TYPEID_PLAYER)
-    {
-        if (Pet* pet = GetPet())
-        {
-            if (CharmInfo* charmInfo = pet->GetCharmInfo())
-                pet->SetModeFlags(PetModeFlags(pet->AI()->GetReactState() | charmInfo->GetCommandState() * 0x100));
-        }
-        else
-            ((Player*)this)->ResummonPetTemporaryUnSummonedIfAny();
-    }
+    return true;
 }
 
 void Unit::SetInCombatWith(Unit* enemy)
@@ -9790,7 +9756,7 @@ Unit* Unit::SelectRandomUnfriendlyTarget(Unit* except /*= nullptr*/, float radiu
     // remove not LoS targets
     for (UnitList::iterator tIter = targets.begin(); tIter != targets.end();)
     {
-        if (!IsWithinLOSInMap(*tIter))
+        if (!IsWithinLOSInMap(*tIter, true))
         {
             UnitList::iterator tIter2 = tIter;
             ++tIter;
@@ -9829,7 +9795,7 @@ Unit* Unit::SelectRandomFriendlyTarget(Unit* except /*= nullptr*/, float radius 
     // remove not LoS targets
     for (UnitList::iterator tIter = targets.begin(); tIter != targets.end();)
     {
-        if (!IsWithinLOSInMap(*tIter))
+        if (!IsWithinLOSInMap(*tIter, true))
         {
             UnitList::iterator tIter2 = tIter;
             ++tIter;
@@ -11004,7 +10970,7 @@ void Unit::UpdateAllowedPositionZ(float x, float y, float& z, Map* atMap /*=null
         bool canSwim = CanSwim();
         float ground_z = z, max_z;
         if (canSwim)
-            max_z = atMap->GetTerrain()->GetWaterOrGroundLevel(x, y, z, &ground_z, !HasAuraType(SPELL_AURA_WATER_WALK));
+            max_z = atMap->GetTerrain()->GetWaterOrGroundLevel(x, y, z, &ground_z, !HasAuraType(SPELL_AURA_WATER_WALK), GetCollisionHeight());
         else
             max_z = ground_z = atMap->GetHeight(x, y, z);
         if (max_z > INVALID_HEIGHT)

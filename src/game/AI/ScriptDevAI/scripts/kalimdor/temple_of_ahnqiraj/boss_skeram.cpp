@@ -194,7 +194,7 @@ struct boss_skeramAI : public CombatAI
         // Teleport, reset thread (and restore visibility if needed)
         DoCastSpellIfCan(nullptr, teleportSpellID);
         DoResetThreat();
-        ClearMark();
+        // ClearMark();     // Starting with patch 2.0.1 raid marks are cleared on teleport
         m_creature->RemoveAllAuras();
 
         if (attacking)
@@ -222,7 +222,7 @@ struct boss_skeramAI : public CombatAI
         return 0;
     }
 
-    void ClearMark()
+/*    void ClearMark()
     {
         if (m_instance)
         {
@@ -235,7 +235,7 @@ struct boss_skeramAI : public CombatAI
             }
         }
     }
-
+*/
     void HandleInitImages()
     {
         std::random_shuffle(m_teleports.begin(), m_teleports.end()); // Shuffle the teleport spells to ensure that boss and images have a different location assigned randomly
@@ -361,7 +361,7 @@ struct InitializeImage : public SpellScript
                 maxHealthPct = 0.10f;
 
             // Set the same health percent as the original boss
-            spell->GetCaster()->SetMaxHealth(unitTarget->GetMaxHealth() * 0.1f); // 10% of boss max health
+            spell->GetCaster()->SetMaxHealth(unitTarget->GetMaxHealth() * maxHealthPct);
             spell->GetCaster()->SetHealthPercent(healthPct);
         }
     }

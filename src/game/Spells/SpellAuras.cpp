@@ -1720,11 +1720,13 @@ void Aura::HandleAuraMounted(bool apply, bool Real)
         if (minfo)
             display_id = minfo->modelid;
 
-        target->Mount(display_id, GetId());
+        m_modifier.m_amount = display_id;
+
+        target->Mount(display_id, this);
     }
     else
     {
-        target->Unmount(true);
+        target->Unmount(this);
     }
 }
 
@@ -2716,7 +2718,7 @@ void Aura::HandleInvisibilityDetect(bool apply, bool Real)
 {
     // In Classic: multiple invisibility detection auras can apply at the same type but only the highest rank one for a given invisibility type (mask) is used
     Unit* target = GetTarget();
-    uint32 detectValue = m_modifier.m_amount;
+    int32 detectValue = m_modifier.m_amount;
     // Aura appliance
     if (apply)
     {
@@ -2730,7 +2732,7 @@ void Aura::HandleInvisibilityDetect(bool apply, bool Real)
     else
     {
         // Check if other auras for the same invisibility mask exist and update invisibility detection value to the highest one
-        uint32 maxDetectValue = 0;
+        int32 maxDetectValue = 0;
         Unit::AuraList const& auras = target->GetAurasByType(SPELL_AURA_MOD_INVISIBILITY_DETECTION);
         for (auto aura : auras)
         {

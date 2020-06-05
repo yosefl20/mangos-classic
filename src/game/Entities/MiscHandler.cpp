@@ -351,6 +351,12 @@ void WorldSession::HandleZoneUpdateOpcode(WorldPacket& recv_data)
     DETAIL_LOG("WORLD: Received opcode CMSG_ZONEUPDATE: newzone is %u", newZone);
 
     GetPlayer()->SetDelayedZoneUpdate(true, newZone);
+
+    if (!IsInitialZoneUpdated() && _player->IsTaxiFlying())
+        if (sWorld.getConfig(CONFIG_BOOL_TAXI_FLIGHT_CHAT_FIX))
+            _player->ForceValuesUpdateAtIndex(UNIT_FIELD_FLAGS);
+
+    m_initialZoneUpdated = true;
 }
 
 void WorldSession::HandleSetTargetOpcode(WorldPacket& recv_data)
@@ -1180,8 +1186,8 @@ void WorldSession::HandleCancelMountAuraOpcode(WorldPacket& /*recv_data*/)
         return;
     }
 
-    _player->Unmount(_player->HasAuraType(SPELL_AURA_MOUNTED));
     _player->RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+    _player->Unmount();
 }
 
 void WorldSession::HandleRequestPetInfoOpcode(WorldPacket& /*recv_data */)

@@ -21,9 +21,12 @@
 #include "Entities/Player.h"
 #include "Grids/GridNotifiers.h"
 #include "Log.h"
+#include "Grids/ObjectGridLoader.h"
 #include "Grids/CellImpl.h"
-#include "Maps/InstanceData.h"
+#include "GridDefines.h"
 #include "Grids/GridNotifiersImpl.h"
+#include "Maps/InstanceData.h"
+#include "Maps/MapPersistentStateMgr.h"
 #include "Entities/Transports.h"
 #include "Globals/ObjectAccessor.h"
 #include "Globals/ObjectMgr.h"
@@ -31,12 +34,10 @@
 #include "Groups/Group.h"
 #include "MapRefManager.h"
 #include "Server/DBCEnums.h"
-#include "Maps/MapPersistentStateMgr.h"
 #include "VMapFactory.h"
 #include "MotionGenerators/MoveMap.h"
 #include "Chat/Chat.h"
 #include "Weather/Weather.h"
-#include "Grids/ObjectGridLoader.h"
 #include "AI/ScriptDevAI/ScriptDevAIMgr.h"
 
 Map::~Map()
@@ -2145,7 +2146,7 @@ void Map::PlayDirectSoundToMap(uint32 soundId, uint32 zoneId /*=0*/) const
 bool Map::IsInLineOfSight(float srcX, float srcY, float srcZ, float destX, float destY, float destZ, bool ignoreM2Model) const
 {
     return VMAP::VMapFactory::createOrGetVMapManager()->isInLineOfSight(GetId(), srcX, srcY, srcZ, destX, destY, destZ, ignoreM2Model)
-           && m_dyn_tree.isInLineOfSight(srcX, srcY, srcZ, destX, destY, destZ);
+           && m_dyn_tree.isInLineOfSight(srcX, srcY, srcZ, destX, destY, destZ, ignoreM2Model);
 }
 
 /**

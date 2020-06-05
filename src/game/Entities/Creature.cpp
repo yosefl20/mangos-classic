@@ -387,8 +387,7 @@ bool Creature::InitEntry(uint32 Entry, CreatureData const* data /*=nullptr*/, Ga
     // check if we need to add swimming movement. TODO: i thing movement flags should be computed automatically at each movement of creature so we need a sort of UpdateMovementFlags() method
     if (cinfo->InhabitType & INHABIT_WATER &&               // check inhabit type water
             !(cinfo->ExtraFlags & CREATURE_EXTRA_FLAG_WALK_IN_WATER) &&  // check if creature is forced to walk (crabs, giant,...)
-            data &&                                         // check if there is data to get creature spawn pos
-            GetMap()->GetTerrain()->IsSwimmable(data->posX, data->posY, data->posZ, minfo->bounding_radius))  // check if creature is in water and have enough space to swim
+            GetMap()->GetTerrain()->IsSwimmable(m_respawnPos.x, m_respawnPos.y, m_respawnPos.z, GetCollisionHeight()))  // check if creature is in water and have enough space to swim
         m_movementInfo.AddMovementFlag(MOVEFLAG_SWIMMING);  // add swimming movement
 
     // checked at loading
@@ -803,6 +802,7 @@ bool Creature::AIM_Initialize()
 bool Creature::Create(uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo const* cinfo, const CreatureData* data /*= nullptr*/, GameEventCreatureData const* eventData /*= nullptr*/)
 {
     SetMap(cPos.GetMap());
+    SetRespawnCoord(cPos);
 
     if (!CreateFromProto(guidlow, cinfo, data, eventData))
         return false;
@@ -2121,7 +2121,7 @@ bool Creature::MeetsSelectAttackingRequirement(Unit* pTarget, SpellEntry const* 
         if ((selectFlags & SELECT_FLAG_NOT_IN_MELEE_RANGE) && CanReachWithMeleeAttack(pTarget))
             return false;
 
-        if ((selectFlags & SELECT_FLAG_IN_LOS) && !IsWithinLOSInMap(pTarget))
+        if ((selectFlags & SELECT_FLAG_IN_LOS) && !IsWithinLOSInMap(pTarget, true))
             return false;
 
         if (!pTarget->IsAlive())

@@ -29,10 +29,11 @@
 #include "Entities/UpdateData.h"
 #include "Entities/UpdateMask.h"
 #include "Util.h"
-#include "Maps/MapManager.h"
 #include "Grids/CellImpl.h"
 #include "Grids/GridNotifiers.h"
 #include "Grids/GridNotifiersImpl.h"
+#include "Maps/GridDefines.h"
+#include "Maps/MapManager.h"
 #include "Maps/ObjectPosSelector.h"
 #include "Entities/TemporarySpawn.h"
 #include "Movement/packet_builder.h"
@@ -447,11 +448,32 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                 {
                     *data << uint32(0);
                 }
-
-                // Gamemasters should be always able to select units - remove not selectable flag
-                else if (index == UNIT_FIELD_FLAGS && target->isGameMaster())
+                else if (index == UNIT_FIELD_FLAGS)
                 {
-                    *data << (m_uint32Values[index] & ~UNIT_FLAG_NOT_SELECTABLE);
+                    uint32 value = m_uint32Values[index];
+
+                    // For gamemasters in GM mode:
+                    if (target->isGameMaster())
+                    {
+                        // Gamemasters should be always able to select units - remove not selectable flag:
+                        value &= ~UNIT_FLAG_NOT_SELECTABLE;
+
+                        // Gamemasters have power to cliffwalk in GM mode:
+                        if (target == this)
+                            value |= UNIT_FLAG_UNK_0;
+                    }
+
+                    // Client bug workaround: Fix for missing chat channels when resuming taxi flight on login
+                    // Client does not send any chat joining attempts by itself when taxi flag is on
+                    if (target == this && (value & UNIT_FLAG_TAXI_FLIGHT))
+                    {
+                        if (sWorld.getConfig(CONFIG_BOOL_TAXI_FLIGHT_CHAT_FIX))
+                            if (WorldSession* session = static_cast<Player const*>(this)->GetSession())
+                                if (!session->IsInitialZoneUpdated())
+                                    value &= ~UNIT_FLAG_TAXI_FLIGHT;
+                    }
+
+                    *data << value;
                 }
                 // Hide lootable animation for unallowed players
                 // Handle tapped flag
@@ -992,7 +1014,8 @@ WorldObject::WorldObject() :
     m_isOnEventNotified(false),
     m_currMap(nullptr), m_mapId(0),
     m_InstanceId(0), m_isActiveObject(false),
-    m_visibilityData(this)
+    m_visibilityData(this),
+    m_debugFlags(0)
 {
 }
 

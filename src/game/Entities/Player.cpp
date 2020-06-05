@@ -1721,6 +1721,48 @@ bool Player::BuildEnumData(QueryResult* result, WorldPacket& p_data)
     return true;
 }
 
+bool Player::Mount(uint32 displayid, const Aura* aura/* = nullptr*/)
+{
+    if (!Unit::Mount(displayid, aura))
+        return false;
+
+    // Custom mount (non-aura such as taxi or command) or in flight: unsummon any pet
+    if (!aura || IsFreeFlying())
+        UnsummonPetTemporaryIfAny();
+    // Land mount aura: unsummon only permanent pet
+    else if (aura)
+    {
+        if (Pet* pet = GetPet())
+        {
+            if (sWorld.getConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT) && pet->isControlled() && !pet->isTemporarySummoned())
+                UnsummonPetTemporaryIfAny();
+            else
+                pet->SetModeFlags(PET_MODE_DISABLE_ACTIONS);
+        }
+    }
+    return true;
+}
+
+bool Player::Unmount(const Aura* aura/* = nullptr*/)
+{
+    if (!Unit::Unmount(aura))
+        return false;
+
+    // only resummon old pet if the player is already added to a map
+    // this prevents adding a pet to a not created map which would otherwise cause a crash
+    // (it could probably happen when logging in after a previous crash)
+    if (Pet* pet = GetPet())
+    {
+        // Get reaction state and display appropriately
+        if (CharmInfo* charmInfo = pet->GetCharmInfo())
+            pet->SetModeFlags(PetModeFlags(pet->AI()->GetReactState() | charmInfo->GetCommandState() * 0x100));
+    }
+    else
+        ResummonPetTemporaryUnSummonedIfAny();
+
+    return true;
+}
+
 void Player::ToggleAFK()
 {
     ToggleFlag(PLAYER_FLAGS, PLAYER_FLAGS_AFK);
@@ -2336,7 +2378,6 @@ void Player::SetGameMaster(bool on)
     {
         m_ExtraFlags |= PLAYER_EXTRA_GM_ON;
         setFaction(35);
-        SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_0);
         SetFlag(PLAYER_FLAGS, PLAYER_FLAGS_GM);
         SetImmuneToNPC(true);
         SetImmuneToPlayer(true);
@@ -2354,7 +2395,6 @@ void Player::SetGameMaster(bool on)
     {
         m_ExtraFlags &= ~ PLAYER_EXTRA_GM_ON;
         setFactionForRace(getRace());
-        RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_0);
         RemoveFlag(PLAYER_FLAGS, PLAYER_FLAGS_GM);
         SetImmuneToNPC(false);
         SetImmuneToPlayer(false);
@@ -4763,15 +4803,10 @@ void Player::UpdateLocalChannels(uint32 newZone)
     {
         next = i; ++next;
 
-        // skip non built-in channels
-        if (!(*i)->IsConstant())
-            continue;
+        ChatChannelsEntry const* ch = (*i)->GetChannelEntry();
 
-        ChatChannelsEntry const* ch = GetChannelEntryFor((*i)->GetChannelId());
-        if (!ch)
-            continue;
-
-        if ((ch->flags & 4) == 4)                           // global channel without zone name in pattern
+        // skip non built-in channels or global channel without zone name in pattern
+        if (!ch || (ch->flags & 4) == 4)
             continue;
 
         //  new channel

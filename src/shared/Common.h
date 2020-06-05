@@ -116,7 +116,7 @@ enum TimeConstants
     IN_MILLISECONDS = 1000
 };
 
-enum AccountTypes
+enum AccountTypes : uint32
 {
     SEC_PLAYER         = 0,
     SEC_MODERATOR      = 1,
@@ -196,5 +196,39 @@ inline char* mangos_strdup(const char* source)
 #ifndef countof
 #define countof(array) (sizeof(array) / sizeof((array)[0]))
 #endif
+
+
+
+enum CMDebugFlags
+{
+    CMDEBUGFLAG_NONE                        = 0x00000000,
+    CMDEBUGFLAG_WP_PATH                     = 0x00000001, // show intermediates point in gm mode (waypoints)
+
+
+
+    CMDEBUGFLAG_DEV_USE1                    = 0x80000000, // can be used for various reason during development
+    CMDEBUGFLAG_DEV_USE2                    = 0x80000000  // can be used for various reason during development
+};
+
+struct CMDebugCommandTableStruct
+{
+    CMDebugCommandTableStruct(std::string const& cmd, std::string const& desc, CMDebugFlags f) :
+        command(cmd), description(desc), flag(f) {}
+
+    std::string command;
+    std::string description;
+    CMDebugFlags flag;
+};
+
+static const std::vector<CMDebugCommandTableStruct> CMDebugCommandTable =
+{
+    { "clearall"                , "reset all flags"                         , CMDEBUGFLAG_NONE                  },
+    { "setall"                  , "set all flags"                           , CMDEBUGFLAG_NONE                  },
+
+    { "wppath"                  , "show waypoint path send to client"       , CMDEBUGFLAG_WP_PATH               },
+
+    { "dev1"                    , "for general use during development"      , CMDEBUGFLAG_DEV_USE1              },
+    { "dev2"                    , "for general use during development"      , CMDEBUGFLAG_DEV_USE2              }
+};
 
 #endif

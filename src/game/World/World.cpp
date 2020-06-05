@@ -520,6 +520,7 @@ void World::LoadConfigSettings(bool reload)
 
     setConfigMinMax(CONFIG_UINT32_MAINTENANCE_DAY, "MaintenanceDay", 4, 0, 6);
 
+    setConfig(CONFIG_BOOL_TAXI_FLIGHT_CHAT_FIX, "TaxiFlightChatFix", false);
     setConfig(CONFIG_BOOL_LONG_TAXI_PATHS_PERSISTENCE, "LongFlightPathsPersistence", false);
     setConfig(CONFIG_BOOL_ALL_TAXI_PATHS, "AllFlightPaths", false);
 
@@ -2133,8 +2134,8 @@ void World::ResetWeeklyQuests()
 
 void World::SetPlayerLimit(int32 limit, bool needUpdate)
 {
-    if (limit < -SEC_ADMINISTRATOR)
-        limit = -SEC_ADMINISTRATOR;
+    if (limit < -int32(SEC_ADMINISTRATOR))
+        limit = -int32(SEC_ADMINISTRATOR);
 
     // lock update need
     bool db_update_need = needUpdate || (limit < 0) != (m_playerLimit < 0) || (limit < 0 && m_playerLimit < 0 && limit != m_playerLimit);
